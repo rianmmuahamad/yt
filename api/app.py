@@ -82,17 +82,36 @@ def get_video_info(url):
 def index():
     return send_file('../index.html')
 
-@app.route('/api/info', methods=['POST'])
+# Tambahkan ini di api/index.py
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
+@app.route('/api/info', methods=['POST', 'OPTIONS'])
 def get_info():
-    data = request.get_json()
-    url = data.get('url')
-    if not url:
-        return jsonify({'error': 'URL is required'}), 400
-    
-    info = get_video_info(url)
-    if 'error' in info:
-        return jsonify(info), 400
-    return jsonify(info)
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+        
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No JSON data received'}), 400
+            
+        url = data.get('url')
+        if not url:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        info = get_video_info(url)
+        if 'error' in info:
+            return jsonify(info), 400
+        return jsonify(info)
+    except Exception as e:
+        logger.error(f"Error in get_info: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/download', methods=['POST'])
 def download():
