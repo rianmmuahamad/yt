@@ -1,34 +1,22 @@
 {
-  "version": 2,
-  "builds": [
-      {
-          "src": "api/index.py",
-          "use": "@vercel/python"
-      },
-      {
-          "src": "*.html",
-          "use": "@vercel/static"
-      }
-  ],
-  "routes": [
-      {
-          "src": "/api/(.*)",
-          "dest": "api/.py"
-      },
-      {
-          "src": "/downloads/(.*)",
-          "dest": "api/app.py"
-      },
-      {
-          "src": "/(.*)",
-          "dest": "/$1"
-      },
-      {
-          "src": "/",
-          "dest": "/index.html"
-      }
-  ],
-  "env": {
-      "PYTHONUNBUFFERED": "1"
-  }
+    "version": 2,
+    "builds": [
+        {
+            "src": "api/index.py",
+            "use": "@vercel/python"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "api/index.py"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "api/index.py"
+        }
+    ],
+    "env": {
+        "FLASK_ENV": "production"
+    }
 }
