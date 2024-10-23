@@ -1,20 +1,11 @@
 # api/index.py
 from flask import Flask, request, jsonify, send_from_directory, send_file
-from flask_cors import CORS
 import yt_dlp
 import os
 from werkzeug.utils import secure_filename
 import logging
 
 app = Flask(__name__)
-# Configure CORS with specific options
-CORS(app, resources={
-    r"/api/*": {
-        "origins": "*",
-        "methods": ["POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -22,18 +13,39 @@ logger = logging.getLogger(__name__)
 
 # Constants
 DOWNLOAD_FOLDER = '/tmp/downloads'
+COOKIES_FILE = 'cookies.txt'
 
 # Ensure necessary directories exist
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
+
+def clean_filename(filename):
+    """Clean filename from invalid characters"""
+    invalid_chars = '<>:"/\\|?*'
+    for char in invalid_chars:
+        filename = filename.replace(char, '')
+    return secure_filename(filename)
+
+def get_size_str(bytes):
+    """Convert file size to readable format"""
+    if bytes is None:
+        return "Unknown size"
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if bytes < 1024:
+            return f"{bytes:.2f} {unit}"
+        bytes /= 1024
+    return f"{bytes:.2f} GB"
+
+def check_cookies_file():
+    """Check if cookies file exists and is not empty"""
+    return os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0
 
 def get_video_info(url):
     try:
         ydl_opts = {
             'quiet': True,
             'no_warnings': False,
-            # Remove cookies file dependency
-            'cookiefile': None
+            'cookiefile': COOKIES_FILE if check_cookies_file() else None
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -66,20 +78,23 @@ def get_video_info(url):
         logger.error(f"Error extracting video info: {str(e)}")
         return {'error': str(e)}
 
-def get_size_str(bytes):
-    """Convert file size to readable format"""
-    if bytes is None:
-        return "Unknown size"
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if bytes < 1024:
-            return f"{bytes:.2f} {unit}"
-        bytes /= 1024
-    return f"{bytes:.2f} GB"
+@app.route('/')
+def index():
+    return send_file('../index.html')
+
+# Tambahkan ini di api/index.py
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 @app.route('/api/info', methods=['POST', 'OPTIONS'])
 def get_info():
     if request.method == 'OPTIONS':
-        return '', 204
+        return jsonify({}), 200
         
     try:
         data = request.get_json()
@@ -98,11 +113,8 @@ def get_info():
         logger.error(f"Error in get_info: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/download', methods=['POST', 'OPTIONS'])
+@app.route('/api/download', methods=['POST'])
 def download():
-    if request.method == 'OPTIONS':
-        return '', 204
-        
     try:
         data = request.get_json()
         url = data.get('url')
@@ -149,13 +161,26 @@ def download():
         logger.error(f"Unexpected error during download: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/')
-def index():
-    return send_file('../index.html')
-
 @app.route('/downloads/<filename>')
 def download_file(filename):
     return send_from_directory(DOWNLOAD_FOLDER, filename, as_attachment=True)
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+# vercel.json
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "api/index.py",
+            "use": "@vercel/python"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/(.*)",
+            "dest": "api/index.py"
+        }
+    ]
+}
