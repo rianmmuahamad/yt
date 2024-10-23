@@ -1,11 +1,13 @@
 # api/index.py
 from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask_cors import CORS  # Import CORS
 import yt_dlp
 import os
 from werkzeug.utils import secure_filename
 import logging
 
 app = Flask(__name__)
+CORS(app)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -91,11 +93,8 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
-@app.route('/api/info', methods=['POST', 'OPTIONS'])
+@app.route('/api/info', methods=['POST'])
 def get_info():
-    if request.method == 'OPTIONS':
-        return jsonify({}), 200
-        
     try:
         data = request.get_json()
         if not data:
