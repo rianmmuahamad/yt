@@ -1,11 +1,13 @@
 # api/index.py
 from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask_cors import CORS
 import yt_dlp
 import os
 from werkzeug.utils import secure_filename
 import logging
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
